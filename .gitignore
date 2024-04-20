@@ -1,0 +1,8 @@
+
+# OSX
+**/.DS_Store
+.DS_Store
+*.swp
+*~.nib
+# Thumbnails
+._*
