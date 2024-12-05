@@ -10,10 +10,12 @@ import "../libraries/utils/ReentrancyGuard.sol";
 import "./interfaces/IRewardDistributor.sol";
 import "./interfaces/IRewardTracker.sol";
 import "../access/Governable.sol";
+import "../Molecule/IMoleculeController.sol";
 
 contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
+    IMoleculeController public moleculeController;
 
     uint256 public constant BASIS_POINTS_DIVISOR = 10000;
     uint256 public constant PRECISION = 1e30;
@@ -71,7 +73,9 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
     function setDepositToken(address _depositToken, bool _isDepositToken) external onlyGov {
         isDepositToken[_depositToken] = _isDepositToken;
     }
-
+    function setMoleculeController(IMoleculeController _moleculeController) external onlyGov {
+        moleculeController = _moleculeController;
+    }
     function setInPrivateTransferMode(bool _inPrivateTransferMode) external onlyGov {
         inPrivateTransferMode = _inPrivateTransferMode;
     }
@@ -178,6 +182,7 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
     }
 
     function _claim(address _account, address _receiver) private returns (uint256) {
+        require(moleculeController.check(_account),"Access Denied");
         _updateRewards(_account);
 
         uint256 tokenAmount = claimableReward[_account];
@@ -192,6 +197,7 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
     }
 
     function _mint(address _account, uint256 _amount) internal {
+        require(moleculeController.check(_account),"Access Denied");
         require(_account != address(0), "RewardTracker: mint to the zero address");
 
         totalSupply = totalSupply.add(_amount);
@@ -201,6 +207,7 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
     }
 
     function _burn(address _account, uint256 _amount) internal {
+        require(moleculeController.check(_account),"Access Denied");
         require(_account != address(0), "RewardTracker: burn from the zero address");
 
         balances[_account] = balances[_account].sub(_amount, "RewardTracker: burn amount exceeds balance");
@@ -235,6 +242,7 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
     }
 
     function _stake(address _fundingAccount, address _account, address _depositToken, uint256 _amount) private {
+        require(moleculeController.check(_account),"Access Denied");
         require(_amount > 0, "RewardTracker: invalid _amount");
         require(isDepositToken[_depositToken], "RewardTracker: invalid _depositToken");
 
@@ -250,6 +258,7 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
     }
 
     function _unstake(address _account, address _depositToken, uint256 _amount, address _receiver) private {
+        require(moleculeController.check(_account),"Access Denied");
         require(_amount > 0, "RewardTracker: invalid _amount");
         require(isDepositToken[_depositToken], "RewardTracker: invalid _depositToken");
 

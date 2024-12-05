@@ -11,10 +11,12 @@ import "./interfaces/IRewardTracker.sol";
 import "./interfaces/IVester.sol";
 import "../tokens/interfaces/IMintable.sol";
 import "../access/Governable.sol";
+import "../Molecule/IMoleculeController.sol";
 
 contract Vester is IVester, IERC20, ReentrancyGuard, Governable {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
+     IMoleculeController public moleculeController;
 
     string public name;
     string public symbol;
@@ -79,25 +81,32 @@ contract Vester is IVester, IERC20, ReentrancyGuard, Governable {
     function setHandler(address _handler, bool _isActive) external onlyGov {
         isHandler[_handler] = _isActive;
     }
+     function setMoleculeController(IMoleculeController _moleculeController) external onlyGov {
+        moleculeController = _moleculeController;
+    }
 
     function setHasMaxVestableAmount(bool _hasMaxVestableAmount) external onlyGov {
         hasMaxVestableAmount = _hasMaxVestableAmount;
     }
 
     function deposit(uint256 _amount) external nonReentrant {
+         require(moleculeController.check(msg.sender),"Access Denied");
         _deposit(msg.sender, _amount);
     }
 
     function depositForAccount(address _account, uint256 _amount) external nonReentrant {
+         require(moleculeController.check(_account),"Access Denied");
         _validateHandler();
         _deposit(_account, _amount);
     }
 
     function claim() external nonReentrant returns (uint256) {
+         require(moleculeController.check(msg.sender),"Access Denied");
         return _claim(msg.sender, msg.sender);
     }
 
     function claimForAccount(address _account, address _receiver) external override nonReentrant returns (uint256) {
+        require(moleculeController.check(_account),"Access Denied");
         _validateHandler();
         return _claim(_account, _receiver);
     }
@@ -108,6 +117,7 @@ contract Vester is IVester, IERC20, ReentrancyGuard, Governable {
     }
 
     function withdraw() external nonReentrant {
+        require(moleculeController.check(msg.sender),"Access Denied");
         address account = msg.sender;
         address _receiver = account;
         _claim(account, _receiver);

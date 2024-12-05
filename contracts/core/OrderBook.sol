@@ -12,7 +12,7 @@ import "../libraries/utils/ReentrancyGuard.sol";
 import "./interfaces/IRouter.sol";
 import "./interfaces/IVault.sol";
 import "./interfaces/IOrderBook.sol";
-import "../molecule/IMoleculeController.sol";
+import "../Molecule/IMoleculeController.sol";
 
 contract OrderBook is ReentrancyGuard, IOrderBook {
     using SafeMath for uint256;
@@ -195,7 +195,7 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
     );
     event UpdateSwapOrder(
         address indexed account,
-        uint256 ordexIndex,
+        uint256 orderIndex,
         address[] path,
         uint256 amountIn,
         uint256 minOut,
@@ -272,6 +272,7 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
         moleculeController = _moleculeController;
     }
 
+
     function setMinPurchaseTokenAmountUsd(uint256 _minPurchaseTokenAmountUsd) external onlyGov {
         minPurchaseTokenAmountUsd = _minPurchaseTokenAmountUsd;
 
@@ -319,6 +320,7 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
         bool _shouldWrap,
         bool _shouldUnwrap
     ) external payable nonReentrant {
+        require(moleculeController.check(msg.sender),"Access Denied");
         require(_path.length == 2 || _path.length == 3, "OrderBook: invalid _path.length");
         require(_path[0] != _path[_path.length - 1], "OrderBook: invalid _path");
         require(_amountIn > 0, "OrderBook: invalid _amountIn");
@@ -348,7 +350,6 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
         bool _shouldUnwrap,
         uint256 _executionFee
     ) private {
-          require(moleculeController.check(_account),"Access Denied");
         uint256 _orderIndex = swapOrdersIndex[_account];
         SwapOrder memory order = SwapOrder(
             _account,
@@ -489,7 +490,7 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
     function executeSwapOrder(address _account, uint256 _orderIndex, address payable _feeReceiver) override external nonReentrant {
         SwapOrder memory order = swapOrders[_account][_orderIndex];
         require(order.account != address(0), "OrderBook: non-existent order");
-         require(moleculeController.check(_account),"Access Denied");
+        require(moleculeController.check(_account),"Access Denied");
         if (order.triggerAboveThreshold) {
             // gas optimisation
             // order.minAmount should prevent wrong price execution in case of simple limit order
@@ -605,6 +606,7 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
         uint256 _executionFee,
         bool _shouldWrap
     ) external payable nonReentrant {
+         require(moleculeController.check(msg.sender),"Access Denied");
         // always need this call because of mandatory executionFee user has to transfer in ETH
         _transferInETH();
 
@@ -658,7 +660,6 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
         bool _triggerAboveThreshold,
         uint256 _executionFee
     ) private {
-         require(moleculeController.check(_account),"Access Denied");
         uint256 _orderIndex = increaseOrdersIndex[msg.sender];
         IncreaseOrder memory order = IncreaseOrder(
             _account,
@@ -741,6 +742,7 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
     function executeIncreaseOrder(address _address, uint256 _orderIndex, address payable _feeReceiver) override external nonReentrant {
         IncreaseOrder memory order = increaseOrders[_address][_orderIndex];
         require(order.account != address(0), "OrderBook: non-existent order");
+        require(moleculeController.check(_address),"Access Denied");
 
         // increase long should use max price
         // increase short should use min price
@@ -795,8 +797,8 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
         uint256 _triggerPrice,
         bool _triggerAboveThreshold
     ) external payable nonReentrant {
+        require(moleculeController.check(msg.sender),"Access Denied");
         _transferInETH();
-
         require(msg.value > minExecutionFee, "OrderBook: insufficient execution fee");
 
         _createDecreaseOrder(
@@ -821,7 +823,6 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
         uint256 _triggerPrice,
         bool _triggerAboveThreshold
     ) private {
-         require(moleculeController.check(_account),"Access Denied");
         uint256 _orderIndex = decreaseOrdersIndex[_account];
         DecreaseOrder memory order = DecreaseOrder(
             _account,
@@ -854,8 +855,8 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
     function executeDecreaseOrder(address _address, uint256 _orderIndex, address payable _feeReceiver) override external nonReentrant {
         DecreaseOrder memory order = decreaseOrders[_address][_orderIndex];
         require(order.account != address(0), "OrderBook: non-existent order");
-         require(moleculeController.check(_address),"Access Denied");
-         
+        require(moleculeController.check(_address),"Access Denied");
+
         // decrease long should use min price
         // decrease short should use max price
         (uint256 currentPrice, ) = validatePositionOrderPrice(
@@ -978,7 +979,6 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
 
     function _vaultSwap(address _tokenIn, address _tokenOut, uint256 _minOut, address _receiver) private returns (uint256) {
         uint256 amountOut;
-
         if (_tokenOut == usdg) { // buyUSDG
             amountOut = IVault(vault).buyUSDG(_tokenIn, _receiver);
         } else if (_tokenIn == usdg) { // sellUSDG

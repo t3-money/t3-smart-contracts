@@ -11,7 +11,7 @@ import "./interfaces/IShortsTracker.sol";
 import "../tokens/interfaces/IUSDG.sol";
 import "../tokens/interfaces/IMintable.sol";
 import "../access/Governable.sol";
-import "../molecule/IMoleculeController.sol";
+import "../Molecule/IMoleculeController.sol";
 
 pragma solidity 0.6.12;
 
@@ -73,9 +73,10 @@ contract GlpManager is ReentrancyGuard, Governable, IGlpManager {
     function setInPrivateMode(bool _inPrivateMode) external onlyGov {
         inPrivateMode = _inPrivateMode;
     }
-     function setMoleculeController(IMoleculeController _moleculeController) external onlyGov {
+    function setMoleculeController(IMoleculeController _moleculeController) external onlyGov {
         moleculeController = _moleculeController;
     }
+
     function setShortsTracker(IShortsTracker _shortsTracker) external onlyGov {
         shortsTracker = _shortsTracker;
     }

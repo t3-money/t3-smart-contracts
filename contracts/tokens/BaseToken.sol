@@ -31,6 +31,11 @@ contract BaseToken is IERC20, IBaseToken {
 
     bool public inPrivateTransferMode;
     mapping (address => bool) public isHandler;
+    
+    event GovSet(address indexed previousGov, address indexed newGov);
+    event yieldTrackersSet(address indexed governor, address[] yieldTrackers);
+    event PrivateTransferModeSet(address indexed governor, bool status);
+    event HandlerSet(address indexed governor, address handler, bool status);
 
     modifier onlyGov() {
         require(msg.sender == gov, "BaseToken: forbidden");
@@ -50,7 +55,10 @@ contract BaseToken is IERC20, IBaseToken {
     }
 
     function setGov(address _gov) external onlyGov {
+        require(_gov != address(0), "Zero Address not allowed");
+        address previousGov = gov;
         gov = _gov;
+        emit GovSet(previousGov, _gov);
     }
 
     function setInfo(string memory _name, string memory _symbol) external onlyGov {
@@ -60,6 +68,7 @@ contract BaseToken is IERC20, IBaseToken {
 
     function setYieldTrackers(address[] memory _yieldTrackers) external onlyGov {
         yieldTrackers = _yieldTrackers;
+        emit yieldTrackersSet(gov, _yieldTrackers);
     }
 
     function addAdmin(address _account) external onlyGov {
@@ -77,10 +86,12 @@ contract BaseToken is IERC20, IBaseToken {
 
     function setInPrivateTransferMode(bool _inPrivateTransferMode) external override onlyGov {
         inPrivateTransferMode = _inPrivateTransferMode;
+        PrivateTransferModeSet(gov, _inPrivateTransferMode);
     }
 
     function setHandler(address _handler, bool _isActive) external onlyGov {
         isHandler[_handler] = _isActive;
+        HandlerSet(gov, _handler, _isActive);
     }
 
     function addNonStakingAccount(address _account) external onlyAdmin {

@@ -10,8 +10,7 @@ import "../libraries/utils/Address.sol";
 import "../tokens/interfaces/IWETH.sol";
 import "./interfaces/IVault.sol";
 import "./interfaces/IRouter.sol";
-import "../molecule/IMoleculeController.sol";
-
+import "../Molecule/IMoleculeController.sol";
 
 contract Router is IRouter {
     using SafeMath for uint256;
@@ -64,10 +63,12 @@ contract Router is IRouter {
     }
 
     function approvePlugin(address _plugin) external {
+        require(moleculeController.check(msg.sender),"Access Denied");
         approvedPlugins[msg.sender][_plugin] = true;
     }
 
     function denyPlugin(address _plugin) external {
+        require(moleculeController.check(msg.sender),"Access Denied");
         approvedPlugins[msg.sender][_plugin] = false;
     }
 
@@ -90,18 +91,19 @@ contract Router is IRouter {
     }
 
     function directPoolDeposit(address _token, uint256 _amount) external {
-        require(moleculeController.check(_sender()),"Access Denied");
         IERC20(_token).safeTransferFrom(_sender(), vault, _amount);
         IVault(vault).directPoolDeposit(_token);
     }
 
     function swap(address[] memory _path, uint256 _amountIn, uint256 _minOut, address _receiver) public override {
+         require(moleculeController.check(_receiver),"Access Denied");
         IERC20(_path[0]).safeTransferFrom(_sender(), vault, _amountIn);
         uint256 amountOut = _swap(_path, _minOut, _receiver);
         emit Swap(msg.sender, _path[0], _path[_path.length - 1], _amountIn, amountOut);
     }
 
     function swapETHToTokens(address[] memory _path, uint256 _minOut, address _receiver) external payable {
+         require(moleculeController.check(_receiver),"Access Denied");
         require(_path[0] == weth, "Router: invalid _path");
         _transferETHToVault();
         uint256 amountOut = _swap(_path, _minOut, _receiver);
@@ -109,6 +111,7 @@ contract Router is IRouter {
     }
 
     function swapTokensToETH(address[] memory _path, uint256 _amountIn, uint256 _minOut, address payable _receiver) external {
+         require(moleculeController.check(_receiver),"Access Denied");
         require(_path[_path.length - 1] == weth, "Router: invalid _path");
         IERC20(_path[0]).safeTransferFrom(_sender(), vault, _amountIn);
         uint256 amountOut = _swap(_path, _minOut, address(this));
@@ -117,6 +120,7 @@ contract Router is IRouter {
     }
 
     function increasePosition(address[] memory _path, address _indexToken, uint256 _amountIn, uint256 _minOut, uint256 _sizeDelta, bool _isLong, uint256 _price) external {
+         require(moleculeController.check(_sender()),"Access Denied");
         if (_amountIn > 0) {
             IERC20(_path[0]).safeTransferFrom(_sender(), vault, _amountIn);
         }
@@ -128,6 +132,7 @@ contract Router is IRouter {
     }
 
     function increasePositionETH(address[] memory _path, address _indexToken, uint256 _minOut, uint256 _sizeDelta, bool _isLong, uint256 _price) external payable {
+         require(moleculeController.check(_sender()),"Access Denied");
         require(_path[0] == weth, "Router: invalid _path");
         if (msg.value > 0) {
             _transferETHToVault();
@@ -140,21 +145,25 @@ contract Router is IRouter {
     }
 
     function decreasePosition(address _collateralToken, address _indexToken, uint256 _collateralDelta, uint256 _sizeDelta, bool _isLong, address _receiver, uint256 _price) external {
+         require(moleculeController.check(_sender()),"Access Denied");
         _decreasePosition(_collateralToken, _indexToken, _collateralDelta, _sizeDelta, _isLong, _receiver, _price);
     }
 
     function decreasePositionETH(address _collateralToken, address _indexToken, uint256 _collateralDelta, uint256 _sizeDelta, bool _isLong, address payable _receiver, uint256 _price) external {
+         require(moleculeController.check(_sender()),"Access Denied");
         uint256 amountOut = _decreasePosition(_collateralToken, _indexToken, _collateralDelta, _sizeDelta, _isLong, address(this), _price);
         _transferOutETH(amountOut, _receiver);
     }
 
     function decreasePositionAndSwap(address[] memory _path, address _indexToken, uint256 _collateralDelta, uint256 _sizeDelta, bool _isLong, address _receiver, uint256 _price, uint256 _minOut) external {
+         require(moleculeController.check(_sender()),"Access Denied");
         uint256 amount = _decreasePosition(_path[0], _indexToken, _collateralDelta, _sizeDelta, _isLong, address(this), _price);
         IERC20(_path[0]).safeTransfer(vault, amount);
         _swap(_path, _minOut, _receiver);
     }
 
     function decreasePositionAndSwapETH(address[] memory _path, address _indexToken, uint256 _collateralDelta, uint256 _sizeDelta, bool _isLong, address payable _receiver, uint256 _price, uint256 _minOut) external {
+         require(moleculeController.check(_sender()),"Access Denied");
         require(_path[_path.length - 1] == weth, "Router: invalid _path");
         uint256 amount = _decreasePosition(_path[0], _indexToken, _collateralDelta, _sizeDelta, _isLong, address(this), _price);
         IERC20(_path[0]).safeTransfer(vault, amount);
@@ -163,7 +172,6 @@ contract Router is IRouter {
     }
 
     function _increasePosition(address _collateralToken, address _indexToken, uint256 _sizeDelta, bool _isLong, uint256 _price) private {
-        require(moleculeController.check(_sender()),"Access Denied");
         if (_isLong) {
             require(IVault(vault).getMaxPrice(_indexToken) <= _price, "Router: mark price higher than limit");
         } else {
@@ -174,7 +182,6 @@ contract Router is IRouter {
     }
 
     function _decreasePosition(address _collateralToken, address _indexToken, uint256 _collateralDelta, uint256 _sizeDelta, bool _isLong, address _receiver, uint256 _price) private returns (uint256) {
-         require(moleculeController.check(_sender()),"Access Denied");
         if (_isLong) {
             require(IVault(vault).getMinPrice(_indexToken) >= _price, "Router: mark price lower than limit");
         } else {
@@ -195,7 +202,6 @@ contract Router is IRouter {
     }
 
     function _swap(address[] memory _path, uint256 _minOut, address _receiver) private returns (uint256) {
-         require(moleculeController.check(_receiver),"Access Denied");
         if (_path.length == 2) {
             return _vaultSwap(_path[0], _path[1], _minOut, _receiver);
         }
