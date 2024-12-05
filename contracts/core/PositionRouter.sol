@@ -439,7 +439,7 @@ contract PositionRouter is BasePositionManager, IPositionRouter {
             uint256 afterFeeAmount = _collectFees(request.account, request.path, amountIn, request.indexToken, request.isLong, request.sizeDelta);
             IERC20(request.path[request.path.length - 1]).safeTransfer(vault, afterFeeAmount);
         }
-        
+
         _increasePosition(request.account, request.path[request.path.length - 1], request.indexToken, request.sizeDelta, request.isLong, request.acceptablePrice);
 
         _transferOutETHWithGasLimitFallbackToWeth(request.executionFee, _executionFeeReceiver);

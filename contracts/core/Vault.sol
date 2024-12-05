@@ -11,12 +11,11 @@ import "../tokens/interfaces/IUSDG.sol";
 import "./interfaces/IVault.sol";
 import "./interfaces/IVaultUtils.sol";
 import "./interfaces/IVaultPriceFeed.sol";
-import "../Molecule/IMoleculeController.sol";
 
 contract Vault is ReentrancyGuard, IVault {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
-    IMoleculeController public moleculeController;
+
     struct Position {
         uint256 size;
         uint256 collateral;
@@ -42,7 +41,6 @@ contract Vault is ReentrancyGuard, IVault {
     bool public override isLeverageEnabled = true;
 
     IVaultUtils public vaultUtils;
-   
 
     address public errorController;
 
@@ -243,11 +241,7 @@ contract Vault is ReentrancyGuard, IVault {
         _onlyGov();
         vaultUtils = _vaultUtils;
     }
-      function setMoleculeController(IMoleculeController _moleculeController) external  {
-         _onlyGov();
-        moleculeController = _moleculeController;
-    }
-    
+
     function setErrorController(address _errorController) external {
         _onlyGov();
         errorController = _errorController;
@@ -524,7 +518,6 @@ contract Vault is ReentrancyGuard, IVault {
     }
 
     function swap(address _tokenIn, address _tokenOut, address _receiver) external override nonReentrant returns (uint256) {
-        _onlyMolecule(tx.origin);
         _validate(isSwapEnabled, 23);
         _validate(whitelistedTokens[_tokenIn], 24);
         _validate(whitelistedTokens[_tokenOut], 25);
@@ -568,7 +561,6 @@ contract Vault is ReentrancyGuard, IVault {
     }
 
     function increasePosition(address _account, address _collateralToken, address _indexToken, uint256 _sizeDelta, bool _isLong) external override nonReentrant {
-        _onlyMolecule(_account);
         _validate(isLeverageEnabled, 28);
         _validateGasPrice();
         _validateRouter(_account);
@@ -637,7 +629,6 @@ contract Vault is ReentrancyGuard, IVault {
     }
 
     function decreasePosition(address _account, address _collateralToken, address _indexToken, uint256 _collateralDelta, uint256 _sizeDelta, bool _isLong, address _receiver) external override nonReentrant returns (uint256) {
-        _onlyMolecule(_account);
         _validateGasPrice();
         _validateRouter(_account);
         return _decreasePosition(_account, _collateralToken, _indexToken, _collateralDelta, _sizeDelta, _isLong, _receiver);
@@ -1224,10 +1215,6 @@ contract Vault is ReentrancyGuard, IVault {
     // we have this validation as a function instead of a modifier to reduce contract size
     function _onlyGov() private view {
         _validate(msg.sender == gov, 53);
-    }
-     // we have this validation as a function instead of a modifier to reduce contract size
-    function _onlyMolecule(address account) private view {
-        _validate(moleculeController.check(account), 56);
     }
 
     // we have this validation as a function instead of a modifier to reduce contract size

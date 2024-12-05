@@ -12,7 +12,4 @@ contract VaultErrorController is Governable {
             _vault.setError(i, _errors[i]);
         }
     }
-    function setError(IVault _vault,uint256 _errorCode, string calldata _error) external onlyGov {
-      _vault.setError(_errorCode, _error);
-    }
 }

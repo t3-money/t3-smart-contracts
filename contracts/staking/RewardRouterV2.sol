@@ -15,13 +15,11 @@ import "../tokens/interfaces/IMintable.sol";
 import "../tokens/interfaces/IWETH.sol";
 import "../core/interfaces/IGlpManager.sol";
 import "../access/Governable.sol";
-import "../Molecule/IMoleculeController.sol";
 
 contract RewardRouterV2 is IRewardRouterV2, ReentrancyGuard, Governable {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
     using Address for address payable;
-    IMoleculeController public moleculeController;
 
     bool public isInitialized;
 
@@ -100,9 +98,6 @@ contract RewardRouterV2 is IRewardRouterV2, ReentrancyGuard, Governable {
     function withdrawToken(address _token, address _account, uint256 _amount) external onlyGov {
         IERC20(_token).safeTransfer(_account, _amount);
     }
-    function setMoleculeController(IMoleculeController _moleculeController) external onlyGov {
-        moleculeController = _moleculeController;
-    }
 
     function batchStakeGmxForAccount(address[] memory _accounts, uint256[] memory _amounts) external nonReentrant onlyGov {
         address _gmx = gmx;
@@ -116,27 +111,24 @@ contract RewardRouterV2 is IRewardRouterV2, ReentrancyGuard, Governable {
     }
 
     function stakeGmx(uint256 _amount) external nonReentrant {
-        require(moleculeController.check(msg.sender),"Access Denied");
         _stakeGmx(msg.sender, msg.sender, gmx, _amount);
     }
 
     function stakeEsGmx(uint256 _amount) external nonReentrant {
-         require(moleculeController.check(msg.sender),"Access Denied");
         _stakeGmx(msg.sender, msg.sender, esGmx, _amount);
     }
 
     function unstakeGmx(uint256 _amount) external nonReentrant {
-         require(moleculeController.check(msg.sender),"Access Denied");
         _unstakeGmx(msg.sender, gmx, _amount, true);
     }
 
     function unstakeEsGmx(uint256 _amount) external nonReentrant {
-         require(moleculeController.check(msg.sender),"Access Denied");
         _unstakeGmx(msg.sender, esGmx, _amount, true);
     }
 
     function mintAndStakeGlp(address _token, uint256 _amount, uint256 _minUsdg, uint256 _minGlp) external nonReentrant returns (uint256) {
         require(_amount > 0, "RewardRouter: invalid _amount");
+
         address account = msg.sender;
         uint256 glpAmount = IGlpManager(glpManager).addLiquidityForAccount(account, account, _token, _amount, _minUsdg, _minGlp);
         IRewardTracker(feeGlpTracker).stakeForAccount(account, account, glp, glpAmount);
@@ -195,7 +187,6 @@ contract RewardRouterV2 is IRewardRouterV2, ReentrancyGuard, Governable {
     }
 
     function claim() external nonReentrant {
-        require(moleculeController.check(msg.sender),"Access Denied");
         address account = msg.sender;
 
         IRewardTracker(feeGmxTracker).claimForAccount(account, account);
@@ -206,7 +197,6 @@ contract RewardRouterV2 is IRewardRouterV2, ReentrancyGuard, Governable {
     }
 
     function claimEsGmx() external nonReentrant {
-        require(moleculeController.check(msg.sender),"Access Denied");
         address account = msg.sender;
 
         IRewardTracker(stakedGmxTracker).claimForAccount(account, account);
@@ -214,7 +204,6 @@ contract RewardRouterV2 is IRewardRouterV2, ReentrancyGuard, Governable {
     }
 
     function claimFees() external nonReentrant {
-         require(moleculeController.check(msg.sender),"Access Denied");
         address account = msg.sender;
 
         IRewardTracker(feeGmxTracker).claimForAccount(account, account);
@@ -222,7 +211,6 @@ contract RewardRouterV2 is IRewardRouterV2, ReentrancyGuard, Governable {
     }
 
     function compound() external nonReentrant {
-         require(moleculeController.check(msg.sender),"Access Denied");
         _compound(msg.sender);
     }
 
@@ -239,7 +227,6 @@ contract RewardRouterV2 is IRewardRouterV2, ReentrancyGuard, Governable {
         bool _shouldClaimWeth,
         bool _shouldConvertWethToEth
     ) external nonReentrant {
-        require(moleculeController.check(msg.sender),"Access Denied");
         address account = msg.sender;
 
         uint256 gmxAmount = 0;
@@ -302,7 +289,6 @@ contract RewardRouterV2 is IRewardRouterV2, ReentrancyGuard, Governable {
     // acceptTransfer, if those values have not been updated yet
     // for GLP transfers it is also possible to transfer GLP into an account using the StakedGlp contract
     function signalTransfer(address _receiver) external nonReentrant {
-        require(moleculeController.check(msg.sender),"Access Denied");
         require(IERC20(gmxVester).balanceOf(msg.sender) == 0, "RewardRouter: sender has vested tokens");
         require(IERC20(glpVester).balanceOf(msg.sender) == 0, "RewardRouter: sender has vested tokens");
 
@@ -311,7 +297,6 @@ contract RewardRouterV2 is IRewardRouterV2, ReentrancyGuard, Governable {
     }
 
     function acceptTransfer(address _sender) external nonReentrant {
-        require(moleculeController.check(msg.sender),"Access Denied");
         require(IERC20(gmxVester).balanceOf(_sender) == 0, "RewardRouter: sender has vested tokens");
         require(IERC20(glpVester).balanceOf(_sender) == 0, "RewardRouter: sender has vested tokens");
 
